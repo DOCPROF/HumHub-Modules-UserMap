@@ -105,27 +105,28 @@ class MapView extends Widget {
             return call_user_func($module->getFormatedAddressCallback, $user);
         }
 
-        if (empty($user->profile->zip) || empty($user->profile->city)) {
-            return null;
-        }
-
-
         $result = "";
+
+        // Add country
+        if (!empty($user->profile->country)) {
+            $result .= 'country=' . $user->profile->country;
+        }
 
         // Add street
         $geocoding_use_street = $settings->get('geocoding_use_street', true);
         if ($geocoding_use_street == true && !empty($user->profile->street))  {
-            $result .= $user->profile->street . ', ';
+            $result .= "&street=".$user->profile->street;
         }
 
-        // Add zip and city
-        $result .= $user->profile->zip . ' ' . $user->profile->city;
-
-        // Add country
-        if (!empty($user->profile->country)) {
-            $result .= ', ' . $user->profile->country;
+        // Add zip 
+        if (!empty($user->profile->zip)) {
+            $result .= "&postcode=" . $user->profile->zip; 
         }
 
+        // Add city
+        if (!empty($user->profile->city)) {
+            $result .= "&place=" . $user->profile->city;
+        }
         return $result;
     }
 
@@ -189,14 +190,16 @@ class MapView extends Widget {
                         return null;
 
                     case 'mapbox':
-                        $rawGeocodingResponse = file_get_contents('https://api.mapbox.com/geocoding/v5/mapbox.places/'.rawurlencode($formatedAddress).'.json?access_token='.$apiKey.'&autocomplete=false&limit=1');
+                        $rawGeocodingResponse = file_get_contents('https://api.mapbox.com/search/geocode/v6/forward?'.($formatedAddress).'&access_token='.$apiKey.'&autocomplete=false&limit=1');
+
+
                         if (!empty($rawGeocodingResponse)) {
                             $geocodingResponse = json_decode($rawGeocodingResponse, true);
                             if (isset($geocodingResponse['features'])) {
                                 if (count($geocodingResponse['features']) >= 1) {
                                     $coords = [
-                                        'latitude' => $geocodingResponse['features'][0]['center'][1],
-                                        'longitude' => $geocodingResponse['features'][0]['center'][0]
+                                        'latitude' => $geocodingResponse['features'][0]['geometry']['coordinates'][1],
+                                        'longitude' => $geocodingResponse['features'][0]['geometry']['coordinates'][0]
                                     ];
 
                                     Yii::$app->cache->set($cacheKey, $coords, 0);
